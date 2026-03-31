@@ -1,0 +1,44 @@
+DownloadScreen {
+    align: center middle;
+}
+
+#download-section {
+    width: 70;
+    height: auto;
+    border: round $primary;
+    padding: 1 2;
+}
+
+#download-title {
+    text-align: center;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#output-row {
+    height: 3;
+    width: 100%;
+}
+
+#output-path-input {
+    width: 1fr;
+}
+
+#browse-btn {
+    width: 12;
+    min-width: 12;
+    height: 3;
+    margin: 0;
+    border: tall transparent;
+}
+
+#start-download-btn {
+    width: 100%;
+    margin-top: 1;
+    margin-bottom: 1;
+    pointer: pointer;
+}
+
+Button:focus {
+    text-style: bold;
+}
