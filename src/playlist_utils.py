@@ -60,8 +60,15 @@ def select_valid_media_playlist(variant_lines: List[Tuple[int, str]], m3u8_url: 
     raise Exception("No valid video playlist (.ts segments) found in master.m3u8.")
 
 def hms_to_seconds(hms: str) -> int:
-    """Convert a time string (HH:MM:SS) to total seconds."""
-    h, m, s = [int(x) for x in hms.split(":")]
+    """Convert a time string (MM:SS or HH:MM:SS) to total seconds."""
+    parts = [int(x) for x in hms.split(":")]
+    if len(parts) == 3:
+        h, m, s = parts
+    elif len(parts) == 2:
+        h = 0
+        m, s = parts
+    else:
+        raise ValueError(f"Invalid time format: {hms}")
     return h * 3600 + m * 60 + s
 
 

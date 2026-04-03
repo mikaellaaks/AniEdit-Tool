@@ -1,6 +1,7 @@
 import ffmpeg
 from typing import Union, Optional
 from src.playlist_utils import fetch_master_playlist, parse_variant_playlists, select_valid_media_playlist, hms_to_seconds
+from src.api import get_episode_link
 
 def download_m3u8(m3u8_url: Union[str, tuple], output_path: str, start_time: Optional[str] = None, end_time: Optional[str] = None):
     # Support receiving a tuple of (url, referer) or just the url
@@ -13,10 +14,16 @@ def download_m3u8(m3u8_url: Union[str, tuple], output_path: str, start_time: Opt
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
     headers = {"User-Agent": user_agent, "Referer": referer}
     
+    print(f"[DEBUG] m3u8_url: {url}")
+    print(f"[DEBUG] output_path: {output_path}")
+    print(f"[DEBUG] start_time: {start_time}, end_time: {end_time}")
+
     # Parse and select the best playlist stream
     master_content = fetch_master_playlist(url, headers)
     variant_lines = parse_variant_playlists(master_content)
     media_playlist_url = select_valid_media_playlist(variant_lines, url, headers) if variant_lines else url
+
+    print(f"[DEBUG] media_playlist_url: {media_playlist_url}")
 
     # Configure ffmpeg commands for trimming and downloading
     ffmpeg_input_kwargs = {}
@@ -59,9 +66,22 @@ def download_m3u8(m3u8_url: Union[str, tuple], output_path: str, start_time: Opt
                 **ffmpeg_input_kwargs
             )
             .output(output_path, **ffmpeg_output_kwargs)
-            .run(overwrite_output=True)
+            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
         )
         print(f"Download complete: {output_path}")
+        return True
 
     except ffmpeg.Error as e:
         print(f"Error downloading video: {e}")
+        print(f"[ffmpeg stdout]\n{e.stdout.decode(errors='ignore') if e.stdout else ''}")
+        print(f"[ffmpeg stderr]\n{e.stderr.decode(errors='ignore') if e.stderr else ''}")
+        return False
+
+def download_pipeline(page_url: str, output_path: str, start_time: str = None, end_time: str = None, video_type="sub", server="vidcloud"):
+    """
+    Pipeline: Given an Aniwatch page URL, extract the m3u8 link and download the video.
+    """
+    # Step 1: Get the m3u8 URL from the page URL
+    m3u8_url = get_episode_link(page_url, video_type=video_type, server=server)
+    # Step 2: Download the video
+    return download_m3u8(m3u8_url, output_path, start_time, end_time)

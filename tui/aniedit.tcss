@@ -13,6 +13,7 @@ DownloadScreen {
     text-align: center;
     width: 100%;
     margin-bottom: 1;
+    pointer: text;
 }
 
 #output-row {
@@ -41,4 +42,32 @@ DownloadScreen {
 
 Button:focus {
     text-style: bold;
+}
+
+NotificationModal {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modal-container {
+    width: 50;
+    height: auto;
+    padding: 2 4;
+    border: thick $primary;
+    background: $surface;
+}
+
+#notification-message {
+    width: 100%;
+    content-align: center middle;
+    margin-bottom: 2;
+}
+
+#modal-progress-bar {
+    width: 100%;
+    margin-bottom: 2;
+}
+
+#close-modal-btn {
+    width: 100%;
 }
