@@ -1,4 +1,4 @@
-# AniEdit-Tool (Python Version)
+# AniEdit-Tool
 
 AniEdit-Tool is a standalone Python program with a Textual User Interface (TUI) for downloading and clipping anime episodes directly from AniWatch. It provides a terminal interface to trim episodes before downloading them.
 
