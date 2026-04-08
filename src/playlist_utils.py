@@ -27,7 +27,7 @@ def parse_variant_playlists(master_content: str) -> List[Tuple[int, str]]:
     return variant_lines
 
 def select_valid_media_playlist(variant_lines: List[Tuple[int, str]], m3u8_url: str, headers: Dict[str, str]) -> str:
-    """Find the highest bandwidth playlist that contains actual video segments (.ts)."""
+    """Find the highest bandwidth playlist that contains actual video segments."""
     print("Checking candidate media playlists for valid video segments...")
     
     # Sort variants by bandwidth in descending order
@@ -38,17 +38,20 @@ def select_valid_media_playlist(variant_lines: List[Tuple[int, str]], m3u8_url: 
             pl_resp = requests.get(candidate_url, headers=headers)
             pl_resp.raise_for_status()
             
-            # Extract content segments, ignoring comments
+            # If the playlist contains EXTINF, it is a media playlist.
+            # Many modern APIs obfuscate segments as .png, .gif, or have no extension.
+            has_extinf = any(line.startswith('#EXTINF:') for line in pl_resp.text.splitlines())
+            
+            # Extract content segments for logging/filtering
             segment_lines = [seg.strip() for seg in pl_resp.text.splitlines() if seg and not seg.startswith('#')]
             segment_types = set(seg.split('.')[-1].lower() for seg in segment_lines if '.' in seg)
             
             print(f"Candidate: {candidate_url}\n  Bandwidth: {bw}\n  Segment types: {segment_types}")
             
-            # Check for valid .ts segments and ensure it's not a dummy playlist of .jpgs
-            has_ts = any(seg.lower().endswith('.ts') for seg in segment_lines)
-            has_jpg = any(seg.lower().endswith('.jpg') for seg in segment_lines)
+            # Avoid picking a dummy thumbnail/sprite playlist if one managed to get in here
+            is_dummy_image_playlist = all(seg.lower().endswith(('.jpg', '.jpeg', '.vtt')) for seg in segment_lines)
             
-            if has_ts and not has_jpg:
+            if has_extinf and not is_dummy_image_playlist:
                 print(f"Selected media playlist: {candidate_url}")
                 return candidate_url
                 
@@ -57,7 +60,7 @@ def select_valid_media_playlist(variant_lines: List[Tuple[int, str]], m3u8_url: 
             continue
 
     print("No valid video playlist found. All candidates were non-video or invalid.")
-    raise Exception("No valid video playlist (.ts segments) found in master.m3u8.")
+    raise Exception("No valid video playlist found in master.m3u8.")
 
 def hms_to_seconds(hms: str) -> int:
     """Convert a time string (MM:SS or HH:MM:SS) to total seconds."""
