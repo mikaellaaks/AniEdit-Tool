@@ -35,7 +35,7 @@ AniEdit-Tool is a standalone Python program with a Textual User Interface (TUI) 
 
 ## Credits
 
-Thanks to @walterwhite-69 for providing the backend scraping engine, [AnimeKAI REST API](https://github.com/walterwhite-69/AnimeKAI-API).
+Thanks to [walterwhite-69](https://github.com/walterwhite-69) for providing the backend scraping engine, [AnimeKAI REST API](https://github.com/walterwhite-69/AnimeKAI-API).
 
 ## License
 
