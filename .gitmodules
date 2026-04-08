@@ -1,0 +1,6 @@
+[submodule "animekai_api"]
+	path = animekai_api
+	url = https://github.com/walterwhite-69/AnimeKAI-API.git
+[submodule "local_api"]
+	path = local_api
+	url = https://github.com/walterwhite-69/AnimeKAI-API.git
