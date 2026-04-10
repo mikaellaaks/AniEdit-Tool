@@ -8,7 +8,7 @@ import sys
 from tui.tui import AniEdit
 
 # Start the local API server process
-api_cwd = os.path.join(os.path.dirname(__file__), "local_api")
+api_cwd = os.path.join(os.path.dirname(__file__), "animekai_api")
 api_process = subprocess.Popen(
     [sys.executable, "app.py"], 
     cwd=api_cwd,
