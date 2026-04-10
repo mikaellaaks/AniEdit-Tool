@@ -1,5 +1,11 @@
 .venv
 .env
 *mp4
-__pycache__
+__pycache__/
+*.pyc
+*.pyo
 *json
+build/
+dist/
+*.spec
+animekai_api/__pycache__/

@@ -6,21 +6,27 @@ import atexit
 import os
 import sys
 from tui.tui import AniEdit
+from animekai_api.app import app as flask_app
+import threading
+import logging
+import os
+import sys
+
+
+cli = sys.modules.get('flask.cli')
+if cli:
+    cli.show_server_banner = lambda *args: None
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 # Start the local API server process
-api_cwd = os.path.join(os.path.dirname(__file__), "animekai_api")
-api_process = subprocess.Popen(
-    [sys.executable, "app.py"], 
-    cwd=api_cwd,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL
-)
+def run_api():
+    # Run flask app
+    flask_app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
 
-def cleanup_api():
-    if api_process.poll() is None:
-        api_process.terminate()
-
-atexit.register(cleanup_api)
+api_thread = threading.Thread(target=run_api, daemon=True)
+api_thread.start()
 
 def main():
     app = AniEdit()
