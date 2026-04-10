@@ -73,7 +73,15 @@ class DownloadScreen(Screen):
     @work(thread=True)
     def perform_download(self, url, temp_path, start_time, end_time, output_file, modal):
         """Run the actual blocking download pipeline in a background thread."""
-        has_downloaded = download_pipeline(url, temp_path, start_time, end_time)
+        
+        # A simple callback function you can pass into download_pipeline.
+        # This will be securely routed back to the main UI thread to update the ProgressBar.
+        def _on_progress(current: int, total: int = 100):
+            self.app.call_from_thread(modal.update_progress, current, total)
+        
+        # NOTE: You'll now need to modify `download_pipeline` in src/downloader.py 
+        # to accept a `progress_callback=None` argument and call it during ffmpeg streaming!
+        has_downloaded = download_pipeline(url, temp_path, start_time, end_time, progress_callback=_on_progress)
         
         # When done, call a UI-updating function back on the main thread
         self.app.call_from_thread(self._finish_download, has_downloaded, temp_path, output_file, modal)

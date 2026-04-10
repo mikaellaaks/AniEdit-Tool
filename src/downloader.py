@@ -1,5 +1,6 @@
 import ffmpeg
-from typing import Union, Optional
+import re
+from typing import Union, Optional, Callable
 from src.playlist_utils import fetch_master_playlist, parse_variant_playlists, select_valid_media_playlist, hms_to_seconds
 from src.api import get_episode_link
 
@@ -57,7 +58,8 @@ def download_m3u8(
     start_time: Optional[str] = None, 
     end_time: Optional[str] = None, 
     remove_watermark: bool = True, 
-    remove_subtitles: bool = True
+    remove_subtitles: bool = True,
+    progress_callback: Optional[Callable[[int, int], None]] = None
 ) -> bool:
     """Download and process an M3U8 stream using ffmpeg."""
     url, referer = m3u8_url if isinstance(m3u8_url, tuple) else (m3u8_url, "https://megacloud.blog/")
@@ -83,17 +85,60 @@ def download_m3u8(
         if remove_watermark:
             video = video.filter('delogo', x='1760', y='10', w='150', h='50')
             
-        (
+        process = (
             ffmpeg.output(video, stream.audio, output_path, **output_kwargs)
-            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+            .run_async(pipe_stderr=True, pipe_stdout=True, overwrite_output=True)
         )
+        
+        duration_sec = 0.0
+        # If clipping using `-t`, the exact output duration is predetermined
+        if 't' in output_kwargs:
+            duration_sec = float(output_kwargs['t'])
+            
+        time_regex = re.compile(r"time=(?P<time>\d+:\d+:\d+\.\d+)")
+        duration_regex = re.compile(r"Duration: (?P<duration>\d+:\d+:\d+\.\d+)")
+        
+        # Read the stderr stream line by line to calculate progress
+        while True:
+            line = process.stderr.readline()
+            if not line:
+                break
+                
+            line_str = line.decode('utf-8', errors='ignore')
+            
+            # If we don't know the duration, try to parse it from the initial stream metadata (Duration: 00:24:00.00)
+            if duration_sec == 0.0:
+                dur_match = duration_regex.search(line_str)
+                if dur_match:
+                    dur_str = dur_match.group("duration")
+                    h, m, s = dur_str.split(':')
+                    duration_sec = float(h) * 3600 + float(m) * 60 + float(s)
+                    
+            if progress_callback and duration_sec > 0:
+                time_match = time_regex.search(line_str)
+                if time_match:
+                    t_str = time_match.group("time")
+                    h, m, s = t_str.split(':')
+                    current_sec = float(h) * 3600 + float(m) * 60 + float(s)
+                    
+                    # Compute percentage
+                    percent = min(100, int((current_sec / duration_sec) * 100))
+                    progress_callback(percent, 100)
+                    
+        process.wait()
+        
+        if process.returncode != 0:
+            print(f"Error downloading video. Return code: {process.returncode}")
+            return False
+            
+        if progress_callback:
+            progress_callback(100, 100)
+            
         print(f"Download complete: {output_path}")
         return True
 
-    except ffmpeg.Error as e:
+    except Exception as e:
         print(f"Error downloading video: {e}")
-        if e.stderr:
-            print(f"[ffmpeg stderr]\n{e.stderr.decode(errors='ignore')}")
         return False
 
 
@@ -103,7 +148,8 @@ def download_pipeline(
     start_time: str | None = None, 
     end_time: str | None = None, 
     video_type: str = "softsub", 
-    server: str = "Server 1"
+    server: str = "Server 1",
+    progress_callback: Optional[Callable[[int, int], None]] = None
 ) -> bool:
     """Extract m3u8 link from an Animekai URL and download the video."""
     m3u8_url = get_episode_link(page_url, video_type=video_type, server=server)
@@ -115,6 +161,7 @@ def download_pipeline(
             start_time, 
             end_time, 
             remove_watermark=True, 
-            remove_subtitles=True
+            remove_subtitles=True,
+            progress_callback=progress_callback
         )
     return False
