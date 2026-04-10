@@ -1,6 +1,7 @@
 import re
 import os
 import shutil
+import threading
 import tkinter as tk
 from tkinter import filedialog
 
@@ -12,6 +13,7 @@ from textual import events, work
 
 from src.downloader import download_pipeline
 from tui.components import AppInput, NotificationModal
+from tui.utils import remove_file, validate_input, load_settings
 
 root = tk.Tk()
 root.withdraw()
@@ -40,8 +42,8 @@ class DownloadScreen(Screen):
         if not isinstance(event.widget, (Input, Button)):
             self.set_focus(None)
 
-    def show_notification(self, message: str, show_progress: bool = False):
-        modal = NotificationModal(message, show_progress)
+    def show_notification(self, message: str, show_progress: bool = False, on_cancel=None):
+        modal = NotificationModal(message, show_progress, on_cancel)
         self.app.push_screen(modal)
         return modal
 
@@ -61,30 +63,38 @@ class DownloadScreen(Screen):
         """Process the download initiation step."""
         url, output_file, start_time, end_time = self._get_input_values()
 
-        is_valid, error_msg = self.validate_input(url, output_file, start_time, end_time)
+        is_valid, error_msg = validate_input(url, output_file, start_time, end_time)
         if not is_valid:
             self.show_notification(error_msg, show_progress=False)
             return
             
+        cancel_event = threading.Event()
+        def handle_cancel():
+            cancel_event.set()
+            
         temp_path = os.path.join(os.getcwd(), f"{output_file}.mp4")
-        modal = self.show_notification("Download started...", show_progress=True)
-        self.perform_download(url, temp_path, start_time, end_time, output_file, modal)
+        modal = self.show_notification("Fetching video...", show_progress=True, on_cancel=handle_cancel)
+        self.perform_download(url, temp_path, start_time, end_time, output_file, modal, cancel_event)
 
     @work(thread=True)
-    def perform_download(self, url, temp_path, start_time, end_time, output_file, modal):
-        """Run the actual blocking download pipeline in a background thread."""
+    def perform_download(self, url, temp_path, start_time, end_time, output_file, modal, cancel_event):
+        """Run the download pipeline in a background thread."""
+        
+        is_downloading = [False]
         
         # A simple callback function you can pass into download_pipeline.
         # This will be securely routed back to the main UI thread to update the ProgressBar.
         def _on_progress(current: int, total: int = 100):
-            self.app.call_from_thread(modal.update_progress, current, total)
+            if not cancel_event.is_set():
+                if not is_downloading[0]:
+                    is_downloading[0] = True
+                    self.app.call_from_thread(modal.update_message, "Downloading video...")
+                self.app.call_from_thread(modal.update_progress, current, total)
         
-        # NOTE: You'll now need to modify `download_pipeline` in src/downloader.py 
-        # to accept a `progress_callback=None` argument and call it during ffmpeg streaming!
-        has_downloaded = download_pipeline(url, temp_path, start_time, end_time, progress_callback=_on_progress)
+        has_downloaded = download_pipeline(url, temp_path, start_time, end_time, progress_callback=_on_progress, cancel_event=cancel_event)
         
         # When done, call a UI-updating function back on the main thread
-        self.app.call_from_thread(self._finish_download, has_downloaded, temp_path, output_file, modal)
+        self.app.call_from_thread(self._finish_download, has_downloaded, temp_path, output_file, modal, cancel_event.is_set())
 
     def _prompt_save_location(self, default_filename: str) -> str:
         """Prompt user for the final save location."""
@@ -94,44 +104,42 @@ class DownloadScreen(Screen):
             initialfile=default_filename
         )
 
-    def _finish_download(self, has_downloaded: bool, temp_path: str, output_file: str, modal: NotificationModal):
+    def _finish_download(self, has_downloaded: bool, temp_path: str, output_file: str, modal: NotificationModal, is_cancelled: bool = False):
         """Handle the end of the download, update UI and move file."""
+        if is_cancelled:
+            # Clean up the partial/temporary file if it was aborted
+            remove_file(temp_path)
+            return
+            
         if modal.progress_bar:
             modal.progress_bar.display = False
             
         if has_downloaded:
-            modal.update_message("Download complete! Select save location...")
-            save_path = self._prompt_save_location(f"{output_file}.mp4")
+            settings = load_settings()
+            always_use_folder = settings.get("always_use_default_folder", False)
+            default_dir = settings.get("default_folder", "")
+            
+            save_path = None
+            if always_use_folder and default_dir and os.path.exists(default_dir):
+                save_path = os.path.join(default_dir, f"{output_file}.mp4")
+            else:
+                modal.update_message("Download complete! Select save location...")
+                save_path = self._prompt_save_location(f"{output_file}.mp4")
             
             if save_path:
                 shutil.move(temp_path, save_path)
                 modal.update_message(f"File saved successfully to:\n{save_path}")
+                modal.update_button_text("Close")
+
             else:
-                modal.update_message("Save cancelled. File is in the temp folder.")
+                remove_file(temp_path)
+                modal.update_message("Save cancelled.")
+                modal.update_button_text("Close")
+
         else:
             modal.update_message("Error: Download failed! Invalid URL or failed to fetch.")
+            modal.update_button_text("Close")
 
     def on_key(self, event) -> None:
         if event.key == "enter":
             self._handle_start_download()
-
-        
-    def validate_input(self, url, output_file, start_time=None, end_time=None):
-        
-        if not url:
-            return False, "URL is required!"
-            
-        if not output_file:
-            return False, "Output filename is required!"
-        
-        if not (url.startswith("http://") or url.startswith("https://")):
-            return False, "Invalid URL! Must start with http:// or https://"
-
-        # Time validation: allow empty or mm:ss (e.g., 01:30)
-        time_pattern = re.compile(r"^(?:[0-5]?\d:[0-5]\d)?$")
-        if start_time and not time_pattern.match(start_time):
-            return False, "Invalid Start Time format! Use mm:ss"
-        if end_time and not time_pattern.match(end_time):
-            return False, "Invalid End Time format! Use mm:ss"
-
-        return True, ""

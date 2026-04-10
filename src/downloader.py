@@ -1,5 +1,6 @@
 import ffmpeg
 import re
+import threading
 from typing import Union, Optional, Callable
 from src.playlist_utils import fetch_master_playlist, parse_variant_playlists, select_valid_media_playlist, hms_to_seconds
 from src.api import get_episode_link
@@ -59,7 +60,8 @@ def download_m3u8(
     end_time: Optional[str] = None, 
     remove_watermark: bool = True, 
     remove_subtitles: bool = True,
-    progress_callback: Optional[Callable[[int, int], None]] = None
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+    cancel_event: Optional[threading.Event] = None
 ) -> bool:
     """Download and process an M3U8 stream using ffmpeg."""
     url, referer = m3u8_url if isinstance(m3u8_url, tuple) else (m3u8_url, "https://megacloud.blog/")
@@ -100,6 +102,11 @@ def download_m3u8(
         
         # Read the stderr stream line by line to calculate progress
         while True:
+            if cancel_event and cancel_event.is_set():
+                process.terminate()
+                process.wait()
+                return False
+                
             line = process.stderr.readline()
             if not line:
                 break
@@ -149,7 +156,8 @@ def download_pipeline(
     end_time: str | None = None, 
     video_type: str = "softsub", 
     server: str = "Server 1",
-    progress_callback: Optional[Callable[[int, int], None]] = None
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+    cancel_event: Optional[threading.Event] = None
 ) -> bool:
     """Extract m3u8 link from an Animekai URL and download the video."""
     m3u8_url = get_episode_link(page_url, video_type=video_type, server=server)
@@ -162,6 +170,7 @@ def download_pipeline(
             end_time, 
             remove_watermark=True, 
             remove_subtitles=True,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            cancel_event=cancel_event
         )
     return False

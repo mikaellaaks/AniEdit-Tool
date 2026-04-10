@@ -63,11 +63,69 @@ NotificationModal {
     margin-bottom: 2;
 }
 
+#welcome-instructions {
+    width: 100%;
+    height: auto;
+    margin-bottom: 2;
+}
+
 #modal-progress-bar {
     width: 100%;
-    margin-bottom: 2;
+    margin: 0 0 2 0;
+    padding: 0;
 }
 
 #close-modal-btn {
     width: 100%;
+}
+
+SettingScreen {
+    align: center middle;
+}
+
+#settings-main {
+    width: 70;
+    height: auto;
+    padding: 2 4;
+}
+
+#settings-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 2;
+    width: 100%;
+    text-align: center;
+}
+
+.setting-item {
+    width: 100%;
+    margin-bottom: 2;
+    height: auto;
+}
+
+.setting-row {
+    width: 100%;
+    height: auto;
+    margin-top: 1;
+}
+
+#default-folder-label {
+    width: 1fr;
+    content-align: left middle;
+    color: $text-muted;
+}
+
+#browse-folder-btn {
+    min-width: 12;
+    height: 3;
+}
+
+.switch-row {
+    layout: horizontal;
+    align: left middle;
+}
+
+.switch-row Label {
+    width: 1fr;
+    content-align: left middle;
 }
