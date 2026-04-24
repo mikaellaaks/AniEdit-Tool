@@ -11,7 +11,6 @@ AniEdit-Tool is a standalone Python program with a Textual User Interface (TUI) 
 ## Prerequisites
 
 - **Python 3.10+**
-- **FFmpeg:** Must be installed on your system and accessible in your system `PATH`.
 
 ## Setup
 
