@@ -10,6 +10,9 @@ from tui.screens.settings import SettingScreen
 from tui.screens.welcome import WelcomeScreen
 from tui.utils import load_settings
 
+import shutil
+import os
+
 # Main App
 class AniEdit(App):
     CSS_PATH = "aniedit.tcss"

@@ -1,9 +1,7 @@
 """
 Entry point for AniEdit-Tool as a pure Python program (no web server).
 """
-import subprocess
-import atexit
-import os
+
 import sys
 from tui.tui import AniEdit
 from animekai_api.app import app as flask_app
@@ -29,6 +27,17 @@ api_thread = threading.Thread(target=run_api, daemon=True)
 api_thread.start()
 
 def main():
+    import imageio_ffmpeg
+    import os
+
+    # Get the bundled ffmpeg executable path
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    
+    # Add the directory containing ffmpeg to the system PATH
+    # This allows ffmpeg-python and other subprocesses to find it offline
+    ffmpeg_dir = os.path.dirname(ffmpeg_exe)
+    os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ["PATH"]
+
     app = AniEdit()
     app.run()
 

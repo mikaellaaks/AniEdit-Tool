@@ -24,7 +24,7 @@ class DownloadScreen(Screen):
         yield Header(show_clock=True)
         yield Vertical(
             Label("Download Anime Clip", id="download-title"),
-            AppInput(placeholder="Enter Aniwatch URL", id="url-input"),
+            AppInput(placeholder="Enter Anikai URL", id="url-input"),
             AppInput(placeholder="Enter output filename", id="filename"),
             AppInput(placeholder="Start Time (optional, e.g. 01:20)", id="start-time-input"),
             AppInput(placeholder="End Time (optional, e.g. 02:30)", id="end-time-input"),

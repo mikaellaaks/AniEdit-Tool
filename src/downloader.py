@@ -4,14 +4,13 @@ import threading
 from typing import Union, Optional, Callable
 from src.playlist_utils import fetch_master_playlist, parse_variant_playlists, select_valid_media_playlist, hms_to_seconds
 from src.api import get_episode_link
+import imageio_ffmpeg
 
 
 def _configure_ffmpeg_kwargs(start_time: Optional[str], end_time: Optional[str], remove_watermark: bool, remove_subtitles: bool) -> tuple[dict, dict]:
     """Configure the input and output keyword arguments for ffmpeg."""
     input_kwargs = {
-        'allowed_extensions': 'ALL',
-        'allowed_segment_extensions': 'ALL',
-        'extension_picky': 0
+        'allowed_extensions': 'ALL'
     }
     output_kwargs = {}
 
@@ -87,9 +86,11 @@ def download_m3u8(
         if remove_watermark:
             video = video.filter('delogo', x='1760', y='10', w='150', h='50')
             
+        ffmpeg_cmd = imageio_ffmpeg.get_ffmpeg_exe()
+
         process = (
             ffmpeg.output(video, stream.audio, output_path, **output_kwargs)
-            .run_async(pipe_stderr=True, pipe_stdout=True, overwrite_output=True)
+            .run_async(pipe_stderr=True, pipe_stdout=True, overwrite_output=True, cmd=ffmpeg_cmd)
         )
         
         duration_sec = 0.0
@@ -145,6 +146,8 @@ def download_m3u8(
         return True
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Error downloading video: {e}")
         return False
 
